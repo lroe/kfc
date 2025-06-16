@@ -27,7 +27,31 @@ const getBackendURLs = () => {
 
 const { apiUrl, wsUrl } = getBackendURLs();
 
+// ############################################################################
+// ## FORMATTING HELPER
+// ############################################################################
 
+/**
+ * A component to format a single feedback item, splitting it into a bolded title
+ * and a description. It expects text in the format "**Title:** Description".
+ */
+const FormattedListItem = ({ text }) => {
+    // Regular expression to find a bolded part ending with a colon.
+    const match = text.match(/^\s*\*{2}(.+?):\*{2}(.*)$/s);
+
+    if (match) {
+        const title = match[1].trim();
+        const description = match[2].trim();
+        return (
+            <li>
+                <strong>{title}:</strong> {description}
+            </li>
+        );
+    }
+
+    // Fallback for simple list items without a bolded title
+    return <li>{text.replace(/^\*/, '').trim()}</li>;
+};
 // ############################################################################
 // ## UI SUB-COMPONENTS (Themed)
 // ############################################################################
@@ -36,7 +60,7 @@ const ReportDisplay = ({ reportData, onPracticeAgain }) => {
     if (!reportData || !reportData.analysis_report) {
         return <p>No report data available.</p>;
     }
-    
+
     const { analysis_report, startup_details } = reportData;
     const { default_alive_dead, pillars, brutal_feedback, top_3_areas } = analysis_report;
 
@@ -47,14 +71,32 @@ const ReportDisplay = ({ reportData, onPracticeAgain }) => {
         if (lowerVerdict.includes('alive')) return 'alive';
         return 'neutral';
     };
+    
+    // Parse the overall assessment into a title and bullet points
+    const assessmentParts = default_alive_dead.split('*');
+    const assessmentTitle = assessmentParts.shift().replace(/\*/g, '').trim();
+    const assessmentPoints = assessmentParts.filter(p => p.trim());
+
+    // Parse the top 3 areas into an ordered list
+    const topAreasText = Array.isArray(top_3_areas) ? top_3_areas.join('\n') : top_3_areas;
+    const topAreasPoints = topAreasText.split(/\n\s*\d+\.\s*/).filter(p => p.trim());
+    if (topAreasPoints[0] && topAreasPoints[0].toLowerCase().startsWith('top 3 areas')) {
+        topAreasPoints.shift(); // Remove the redundant title if present
+    }
+
 
     return (
         <div id="reportArea">
-             <div className="content-card">
+            <div className="content-card">
                 <h2 style={{ textAlign: 'center' }}>Pitch Analysis for "{startup_details.name}"</h2>
-                <div className={`status-assessment ${getVerdictClass(default_alive_dead)}`}>
-                    <strong>Overall Assessment:</strong> {default_alive_dead || 'Analysis not available.'}
+                <div className={`status-assessment ${getVerdictClass(assessmentTitle)}`}>
+                    <strong>Overall Assessment:</strong> {assessmentTitle}
                 </div>
+                <ul className="report-list">
+                    {assessmentPoints.map((point, i) => (
+                        <FormattedListItem key={i} text={`**Point ${i+1}:** ${point}`} />
+                    ))}
+                </ul>
             </div>
 
             {pillars && <div className="content-card">
@@ -67,7 +109,7 @@ const ReportDisplay = ({ reportData, onPracticeAgain }) => {
                         </h3>
                         {data.feedback && <ul className="report-list">
                             {data.feedback.map((fb, i) => (
-                                <li key={i}>{fb.replace(/^\*+/, '').trim()}</li>
+                                <FormattedListItem key={i} text={fb} />
                             ))}
                         </ul>}
                     </div>
@@ -78,18 +120,18 @@ const ReportDisplay = ({ reportData, onPracticeAgain }) => {
                 <h2>Brutally Honest Feedback</h2>
                 <ul className="report-list">
                     {brutal_feedback.map((fb, i) => (
-                        <li key={i}>{fb.replace(/^\*+/, '').trim()}</li>
+                        <FormattedListItem key={i} text={fb} />
                     ))}
                 </ul>
             </div>}
             
             {top_3_areas && <div className="content-card">
                 <h2>Top 3 Areas for Next Practice</h2>
-                 <ul className="report-list">
-                    {top_3_areas.map((fb, i) => (
-                        <li key={i}>{fb.replace(/^\*+/, '').trim()}</li>
+                 <ol className="report-list-ordered">
+                    {topAreasPoints.map((point, i) => (
+                         <FormattedListItem key={i} text={point} />
                     ))}
-                </ul>
+                </ol>
             </div>}
 
             <div style={{ textAlign: 'center', marginTop: '30px' }}>
@@ -98,7 +140,6 @@ const ReportDisplay = ({ reportData, onPracticeAgain }) => {
         </div>
     );
 };
-
 
 const TimerBar = ({ remainingSeconds, totalSeconds }) => {
     const percentage = (remainingSeconds / totalSeconds) * 100;
