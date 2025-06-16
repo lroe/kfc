@@ -6,7 +6,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import '../App.css'; // Use the main App.css file
 
 // Backend WebSocket URL
-const BACKEND_WS_URL = "ws://localhost:8000/ws";
+const BACKEND_WS_URL = process.env.REACT_APP_WEBSOCKET_URL + "/ws";
 const PITCH_DURATION_SECONDS = 120;
 
 // ############################################################################
