@@ -59,7 +59,7 @@ export function AuthProvider({ children }) {
 
     function signInWithGoogle() {
         // This redirects the user, so the backend handles the callback
-        window.location.href = 'http://localhost:8000/login/google'; // Use your actual backend URL
+        window.location.href = `${process.env.REACT_APP_BACKEND_URL}/login/google`; // Use your actual backend URL
     }
 
     function handleGoogleCallback() {
