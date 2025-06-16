@@ -1,9 +1,10 @@
-# A list of static sites to deploy
-staticSites:
+# All services are defined under this single top-level 'services' key
+services:
   # -------------------
-  # The React Frontend
+  # The React Frontend (Static Site)
   # -------------------
-  - name: pitchine-client
+  - type: static_site  # This is the correct type for a static site
+    name: pitchine-client
     rootDir: frontend
     plan: free
     buildCommand: "npm install && npm run build"
@@ -15,7 +16,7 @@ staticSites:
     envVars:
       - key: REACT_APP_BACKEND_URL
         fromService:
-          type: web
+          type: web # The service type we are referencing (the API below)
           name: pitchine-api
           property: url
       - key: REACT_APP_WEBSOCKET_URL
@@ -25,10 +26,8 @@ staticSites:
           property: url
           modify: "sed 's/^http/ws/'"
 
-# A list of web services to deploy
-services:
   # ------------------
-  # The Python Backend
+  # The Python Backend (Web Service)
   # ------------------
   - type: web
     name: pitchine-api
@@ -49,8 +48,7 @@ services:
         generateValue: true
       - key: FRONTEND_URL
         fromService:
-          # --- THIS IS THE FIX ---
-          # When referencing a static site, you do NOT include the 'type' key.
+          type: static_site # The service type we are referencing (the client above)
           name: pitchine-client
           property: url
     secretFiles:
