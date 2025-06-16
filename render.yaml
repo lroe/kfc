@@ -1,30 +1,48 @@
 services:
-  # -----------------
-  # Backend API Service
-  # -----------------
+  # ------------------
+  # The Python Backend
+  # ------------------
   - type: web
     name: pitchine-api
-    runtime: python
-    rootDir: .
+    env: python # 'env' is the correct key, not 'runtime'.
+    plan: free
     buildCommand: "pip install -r requirements.txt"
     startCommand: "uvicorn main:app --host 0.0.0.0 --port $PORT"
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11.5 # Or your specific Python version
-      - key: REACT_APP_BACKEND_URL # For CORS
+        value: 3.11.0
+      - key: GOOGLE_CLIENT_ID
         sync: false
-      - key: FRONTEND_URL # For Google OAuth
+      - key: GOOGLE_CLIENT_SECRET
         sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: SESSION_SECRET_KEY
+        generateValue: true
+      - key: FRONTEND_URL
+        fromService:
+          type: static_site # Corrected: This must match the type of the frontend service
+          name: pitchine-client
+          property: url
+    secretFiles:
+      - key: GOOGLE_APPLICATION_CREDENTIALS
+        name: gcp_creds.json
+        mountPath: /etc/secrets/gcp_creds.json
+      - key: FIREBASE_SERVICE_ACCOUNT
+        name: firebase_creds.json
+        mountPath: /etc/secrets/firebase_creds.json
 
-  # ---------------------
-  # Frontend Static Service
-  # ---------------------
-  - type: static
+  # -------------------
+  # The React Frontend
+  # -------------------
+  - type: static_site # CORRECTED: This is the required type for a static site
     name: pitchine-client
-    rootDir: frontend
+    # Since your React app is in the 'frontend' subfolder,
+    # we need to tell Render where to look for it.
+    rootDir: frontend 
+    plan: free
     buildCommand: "npm install && npm run build"
     publishDir: build
-    # Rewrite rule for Single Page Applications
     routes:
       - type: rewrite
         source: /*
@@ -35,3 +53,11 @@ services:
           type: web
           name: pitchine-api
           property: url
+      # CORRECTED: WebSocket URL with proper transformation
+      - key: REACT_APP_WEBSOCKET_URL
+        fromService:
+          type: web
+          name: pitchine-api
+          # Transform https:// to wss:// for WebSocket connection
+          property: url
+          modify: "sed 's/^http/ws/'"
