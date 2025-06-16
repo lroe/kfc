@@ -78,7 +78,8 @@ else:
 # --- FIREBASE ADMIN SDK INITIALIZATION ---
 fb_db = None
 try:
-    SERVICE_ACCOUNT_KEY_PATH = 'pitchine-ed6c2-firebase-adminsdk-fbsvc-11654bf63e.json'
+    # Use the new environment variable. Fallback to local file for development.
+    SERVICE_ACCOUNT_KEY_PATH = os.environ.get('FIREBASE_SERVICE_ACCOUNT_PATH', 'pitchine-ed6c2-firebase-adminsdk-fbsvc-11654bf63e.json')
     if os.path.exists(SERVICE_ACCOUNT_KEY_PATH):
         cred = credentials.Certificate(SERVICE_ACCOUNT_KEY_PATH)
         if not firebase_admin._apps:
