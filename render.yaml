@@ -1,15 +1,14 @@
-# All services are defined under the top-level 'services' key
 services:
   # -------------------
   # The React Frontend (Static Site)
   # -------------------
   - name: pitchine-client
     type: web
-    runtime: static # This combination defines a static site on Render
+    runtime: static
     rootDir: frontend
     plan: free
     buildCommand: "npm install && npm run build"
-    staticPublishPath: build # Use 'staticPublishPath' for static sites
+    staticPublishPath: build
     routes:
       - type: rewrite
         source: /*
@@ -49,13 +48,20 @@ services:
         generateValue: true
       - key: FRONTEND_URL
         fromService:
-          type: web # The frontend is also a type of web service
+          type: web
           name: pitchine-client
           property: url
-    secretFiles:
+      # --- THIS IS THE FIX ---
+      # The secretFiles are environment variables and must be defined
+      # within the envVars block by referencing their mount path.
       - key: GOOGLE_APPLICATION_CREDENTIALS
-        name: gcp_creds.json
+        value: /etc/secrets/gcp_creds.json
+      - key: FIREBASE_SERVICE_ACCOUNT_PATH
+        value: /etc/secrets/firebase_creds.json
+    
+    # The 'secretFiles' block itself is a top-level property of the service
+    secretFiles:
+      - key: gcp_creds.json
         mountPath: /etc/secrets/gcp_creds.json
-      - key: FIREBASE_SERVICE_ACCOUNT
-        name: firebase_creds.json
+      - key: firebase_creds.json
         mountPath: /etc/secrets/firebase_creds.json
