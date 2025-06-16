@@ -4,12 +4,10 @@ staticSites:
   # The React Frontend
   # -------------------
   - name: pitchine-client
-    # The root of the frontend app is in the 'frontend' directory
     rootDir: frontend
     plan: free
     buildCommand: "npm install && npm run build"
     publishDir: build
-    # Rewrite all requests to index.html for React Router
     routes:
       - type: rewrite
         source: /*
@@ -17,12 +15,12 @@ staticSites:
     envVars:
       - key: REACT_APP_BACKEND_URL
         fromService:
-          type: web # The type of the service we are referencing
+          type: web
           name: pitchine-api
           property: url
       - key: REACT_APP_WEBSOCKET_URL
         fromService:
-          type: web # The type of the service we are referencing
+          type: web
           name: pitchine-api
           property: url
           modify: "sed 's/^http/ws/'"
@@ -51,7 +49,8 @@ services:
         generateValue: true
       - key: FRONTEND_URL
         fromService:
-          type: static_site # The type of the service we are referencing
+          # --- THIS IS THE FIX ---
+          # When referencing a static site, you do NOT include the 'type' key.
           name: pitchine-client
           property: url
     secretFiles:
