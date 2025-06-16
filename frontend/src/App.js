@@ -1,4 +1,4 @@
-// File: frontend/src/App.js
+// File: frontend/src/App.js (Corrected)
 
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, NavLink, Navigate, Outlet } from 'react-router-dom';
@@ -16,7 +16,7 @@ import './App.css';
 
 /**
  * The main layout for all protected pages.
- * It includes the header with navigation and an <Outlet> to render the specific page.
+ * It includes the header with navigation and an <Outlet> to render the specific page content.
  */
 function MainLayout() {
     const { currentUser, logout } = useAuth();
@@ -32,19 +32,16 @@ function MainLayout() {
                     <NavLink to="/feedback">Feedback</NavLink>
                 </nav>
                 <div className="user-info">
-                    {currentUser ? (
+                    {currentUser && (
                         <>
                             <span>{currentUser.email}</span>
                             <button onClick={logout} className="btn btn-secondary">Logout</button>
                         </>
-                    ) : (
-                        // This part is a fallback, but shouldn't be seen if PrivateRoute works
-                        <NavLink to="/login" className="btn">Login</NavLink>
                     )}
                 </div>
             </header>
             <main className="app-content">
-                {/* The Outlet renders the matched child route component */}
+                {/* The Outlet is the placeholder where child routes will be rendered */}
                 <Outlet />
             </main>
         </div>
@@ -62,31 +59,35 @@ function PrivateRoute({ children }) {
 }
 
 /**
- * The App component now just defines the routes.
- * The layout is handled by the MainLayout component.
+ * The App component now correctly defines the route structure.
  */
 function App() {
   return (
     <Routes>
-        {/* Publicly accessible login page - NO main layout */}
+        {/* Route 1: The public login page. It does NOT use the MainLayout. */}
         <Route path="/login" element={<LoginPage />} />
 
-        {/* All protected routes are nested under a single private route
-            that renders the MainLayout. */}
+        {/* Route 2: A parent route that protects and provides the MainLayout for all nested routes. */}
         <Route 
-            path="/*" 
+            path="/" 
             element={
                 <PrivateRoute>
                     <MainLayout />
                 </PrivateRoute>
             }
         >
-            {/* These routes are children of MainLayout and will be rendered in its <Outlet> */}
-            <Route index element={<Navigate to="/" />} />
-            <Route path="/" element={<HomePage />} />
+            {/* These are the children of MainLayout. They will be rendered in the <Outlet>. */}
+            
+            {/* The 'index' route renders at the parent's path ('/'). This is for your HomePage. */}
+            <Route index element={<HomePage />} /> 
+            
+            {/* Other protected pages are defined with their relative paths. */}
             <Route path="deck-analyzer" element={<DeckAnalyzerPage />} />
             <Route path="pitch-practice" element={<PitchPracticePage />} />
             <Route path="feedback" element={<FeedbackPage />} />
+            
+            {/* A catch-all for any other path will redirect to the home page. */}
+            <Route path="*" element={<Navigate to="/" />} />
         </Route>
     </Routes>
   );
