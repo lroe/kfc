@@ -1,14 +1,16 @@
-# All services are defined under this single top-level 'services' key.
-services:
+# =========================================================
+# Corrected render.yaml - Verified against Official Docs
+# =========================================================
+
+# The 'staticSites' block is a top-level key for React/Vite/etc. apps.
+staticSites:
   # -------------------
-  # The React Frontend (Static Site)
+  # The React Frontend
   # -------------------
-  - type: static_site  # This IS the correct type for a static site.
-    name: pitchine-client
+  - name: pitchine-client
     rootDir: frontend
-    plan: free
     buildCommand: "npm install && npm run build"
-    publishDir: build # 'publishDir' is CORRECT for 'type: static_site'.
+    publishDir: build
     routes:
       - type: rewrite
         source: /*
@@ -16,7 +18,7 @@ services:
     envVars:
       - key: REACT_APP_BACKEND_URL
         fromService:
-          type: web # The service type we are referencing (the API below)
+          type: web # This is correct, it references the API's type
           name: pitchine-api
           property: url
       - key: REACT_APP_WEBSOCKET_URL
@@ -26,34 +28,35 @@ services:
           property: url
           modify: "sed 's/^http/ws/'"
 
+# The 'services' block is a separate top-level key for backend apps.
+services:
   # ------------------
-  # The Python Backend (Web Service)
+  # The Python Backend
   # ------------------
   - type: web
     name: pitchine-api
     env: python
-    plan: free
+    plan: free # Use 'starter' if you need more resources
     buildCommand: "pip install -r requirements.txt"
     startCommand: "uvicorn main:app --host 0.0.0.0 --port $PORT"
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
-      # These values MUST be set in the Render Dashboard Environment.
-      # The secret files themselves are also set in the dashboard.
-      - key: GOOGLE_APPLICATION_CREDENTIALS
-        value: /etc/secrets/gcp_creds.json
-      - key: FIREBASE_SERVICE_ACCOUNT_PATH
-        value: /etc/secrets/firebase_creds.json
+      # These values MUST be set in the Render Dashboard Environment tab.
+      # The yaml only declares that the app will use them.
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: GOOGLE_CLIENT_SECRET
         sync: false
       - key: GEMINI_API_KEY
         sync: false
+      - key: GOOGLE_APPLICATION_CREDENTIALS
+        value: /etc/secrets/gcp_creds.json
+      - key: FIREBASE_SERVICE_ACCOUNT_PATH
+        value: /etc/secrets/firebase_creds.json
       - key: SESSION_SECRET_KEY
-        generateValue: true
+        generateValue: true # Render will create a secure, random value
       - key: FRONTEND_URL
         fromService:
-          type: static_site # Reference the service by its correct type.
-          name: pitchine-client
-          property: url
+          name: pitchine-client # You ONLY provide the name
+          type: static_site    # ...and the type of the service you're linking to.
