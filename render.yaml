@@ -1,14 +1,15 @@
-# All services are defined under this single top-level 'services' key
+# All services are defined under the top-level 'services' key
 services:
   # -------------------
   # The React Frontend (Static Site)
   # -------------------
-  - type: static_site  # This is the correct type for a static site
-    name: pitchine-client
+  - name: pitchine-client
+    type: web
+    runtime: static # This combination defines a static site on Render
     rootDir: frontend
     plan: free
     buildCommand: "npm install && npm run build"
-    publishDir: build
+    staticPublishPath: build # Use 'staticPublishPath' for static sites
     routes:
       - type: rewrite
         source: /*
@@ -16,7 +17,7 @@ services:
     envVars:
       - key: REACT_APP_BACKEND_URL
         fromService:
-          type: web # The service type we are referencing (the API below)
+          type: web
           name: pitchine-api
           property: url
       - key: REACT_APP_WEBSOCKET_URL
@@ -48,7 +49,7 @@ services:
         generateValue: true
       - key: FRONTEND_URL
         fromService:
-          type: static_site # The service type we are referencing (the client above)
+          type: web # The frontend is also a type of web service
           name: pitchine-client
           property: url
     secretFiles:
