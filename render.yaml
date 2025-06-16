@@ -3,7 +3,7 @@ services:
   # The React Frontend
   # -------------------
   - name: pitchine-client
-    type: static_site
+    type: web
     rootDir: frontend
     buildCommand: "npm install && npm run build"
     publishDir: build
