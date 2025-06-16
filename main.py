@@ -31,7 +31,7 @@ import json
 import google.generativeai as genai
 import traceback
 import re
-from datetime import datetime
+from datetime import datetime, timezone # <-- UPDATED IMPORT
 import shutil
 import firebase_admin
 from firebase_admin import credentials, firestore, auth
@@ -802,6 +802,11 @@ class StartupProfile(StartupProfileCreate):
     id: str
     lastUsed: Optional[datetime] = None
 
+# <<< NEW CODE BLOCK START >>>
+class FeedbackPayload(BaseModel):
+    text: str = Field(..., min_length=10, max_length=5000)
+# <<< NEW CODE BLOCK END >>>
+
 
 @app.get("/api/profiles", response_model=List[StartupProfile])
 async def get_user_profiles(user_uid: str = Depends(get_current_user_uid)):
@@ -866,6 +871,41 @@ async def delete_user_profile(profile_id: str, user_uid: str = Depends(get_curre
         return
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error deleting profile: {e}")
+
+# <<< NEW CODE BLOCK START >>>
+@app.post("/api/feedback")
+async def submit_feedback(payload: FeedbackPayload, user_uid: str = Depends(get_current_user_uid)):
+    """
+    Receives feedback from a user and stores it in Firestore.
+    """
+    if not fb_db:
+        raise HTTPException(status_code=503, detail="Database service is not available.")
+    
+    try:
+        # Fetch user email for context, if available
+        user_record = auth.get_user(user_uid)
+        user_email = user_record.email
+        
+        feedback_data = {
+            "user_id": user_uid,
+            "user_email": user_email,
+            "text": payload.text,
+            "timestamp": firestore.SERVER_TIMESTAMP, # Use server timestamp for consistency
+            "status": "new"  # Default status for new feedback
+        }
+
+        # Add a new doc in collection 'feedback'
+        fb_db.collection('feedback').add(feedback_data)
+
+        return {"status": "success", "message": "Feedback received. Thank you!"}
+    
+    except Exception as e:
+        print(f"Error saving feedback for user {user_uid}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred while saving feedback."
+        )
+# <<< NEW CODE BLOCK END >>>
 
 
 # --- WebSocket Endpoint (The Core of the Live Pitch Practice) ---
