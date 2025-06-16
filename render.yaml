@@ -1,14 +1,12 @@
 services:
   # -------------------
-  # The React Frontend (Static Site)
+  # The React Frontend
   # -------------------
   - name: pitchine-client
-    type: web
-    runtime: static
+    type: static_site
     rootDir: frontend
-    plan: free
     buildCommand: "npm install && npm run build"
-    staticPublishPath: build
+    publishDir: build
     routes:
       - type: rewrite
         source: /*
@@ -27,41 +25,23 @@ services:
           modify: "sed 's/^http/ws/'"
 
   # ------------------
-  # The Python Backend (Web Service)
+  # The Python Backend
   # ------------------
   - type: web
     name: pitchine-api
     env: python
-    plan: free
     buildCommand: "pip install -r requirements.txt"
     startCommand: "uvicorn main:app --host 0.0.0.0 --port $PORT"
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
-      - key: GOOGLE_CLIENT_ID
-        sync: false
-      - key: GOOGLE_CLIENT_SECRET
-        sync: false
-      - key: GEMINI_API_KEY
-        sync: false
-      - key: SESSION_SECRET_KEY
-        generateValue: true
-      - key: FRONTEND_URL
-        fromService:
-          type: web
-          name: pitchine-client
-          property: url
-      # --- THIS IS THE FIX ---
-      # The secretFiles are environment variables and must be defined
-      # within the envVars block by referencing their mount path.
+      # These will be set in the Render Dashboard
       - key: GOOGLE_APPLICATION_CREDENTIALS
         value: /etc/secrets/gcp_creds.json
       - key: FIREBASE_SERVICE_ACCOUNT_PATH
         value: /etc/secrets/firebase_creds.json
-    
-    # The 'secretFiles' block itself is a top-level property of the service
-    secretFiles:
-      - key: gcp_creds.json
-        mountPath: /etc/secrets/gcp_creds.json
-      - key: firebase_creds.json
-        mountPath: /etc/secrets/firebase_creds.json
+      - key: FRONTEND_URL
+        fromService:
+          type: static_site
+          name: pitchine-client
+          property: url
