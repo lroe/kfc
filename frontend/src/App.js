@@ -5,80 +5,104 @@ import {
   BrowserRouter as Router,
   Routes,
   Route,
-  NavLink,
+  NavLink, // <-- Use NavLink for active styles
   Navigate,
   useLocation
 } from 'react-router-dom';
+
+// Import the AuthProvider and the useAuth hook
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import HomePage from './pages/HomePage';
+
+// Import all your page components
 import DeckAnalyzerPage from './pages/DeckAnalyzerPage';
 import PitchPracticePage from './pages/PitchPracticePage';
+import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import FeedbackPage from './pages/FeedbackPage';
+// Import the main stylesheet
 import './App.css';
 
-// --- Header Component ---
-// This component contains ALL the elements for the top bar.
-// This is the structure your CSS needs to create the correct layout.
-function AppHeader() {
+// --- MainNav Component Definition ---
+// This component displays the main navigation bar.
+function MainNav() {
     const { currentUser, logout } = useAuth();
 
-    // The entire header is rendered, but the content inside changes.
-    // On the login page, currentUser is null, so the nav links and user info won't render.
-    if (!currentUser) {
-        return null; // Don't render the header at all on the login page
-    }
+    const handleLogout = async () => {
+        try {
+            await logout();
+        } catch (error) {
+            console.error("Failed to log out:", error);
+        }
+    };
 
     return (
-        <header className="app-header">
-            <div className="logo">Pitchine</div>
-            <nav className="main-nav">
-                <NavLink to="/">Home</NavLink>
-                <NavLink to="/deck-analyzer">Deck Analyzer</NavLink>
-                <NavLink to="/pitch-practice">Live Pitch Practice</NavLink>
+        <nav className="main-nav">
+            <div className="nav-links">
+                <NavLink to="/" end>Home</NavLink>
+                {currentUser && <NavLink to="/analyze">Deck Analyzer</NavLink>}
+                {currentUser && <NavLink to="/practice">Live Pitch Practice</NavLink>}
                 <NavLink to="/feedback">Feedback</NavLink>
-            </nav>
-            <div className="user-info">
-                <span>{currentUser.email}</span>
-                <button onClick={logout} className="btn btn-secondary">Logout</button>
             </div>
-        </header>
+            <div className="nav-auth">
+                {currentUser ? (
+                    <>
+                        <span>{currentUser.email}</span>
+                        <button onClick={handleLogout} className="logout-btn">Logout</button>
+                    </>
+                ) : (
+                    <NavLink to="/login" className="login-btn">Login / Sign Up</NavLink>
+                )}
+            </div>
+        </nav>
     );
 }
 
-// --- ProtectedRoute Component ---
+// --- ProtectedRoute Component Definition ---
+// This wrapper component protects routes that require authentication.
 function ProtectedRoute({ children }) {
     const { currentUser } = useAuth();
-    return currentUser ? children : <Navigate to="/login" />;
+    const location = useLocation();
+
+    if (!currentUser) {
+        // If the user is not logged in, redirect to the /login page
+        return <Navigate to="/login" state={{ from: location }} replace />;
+    }
+
+    // If the user is logged in, render the child component (the protected page)
+    return children;
 }
 
+
 // --- Main App Component ---
+// This is the root of your application.
 function App() {
   return (
-    <div className="App">
-        <AppHeader />
-        <main className="app-content">
+    <AuthProvider>
+      <Router>
+        <MainNav />
+        <main className="container">
           <Routes>
+            {/* Public Routes */}
+            <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
-            <Route path="/deck-analyzer" element={<ProtectedRoute><DeckAnalyzerPage /></ProtectedRoute>} />
-            <Route path="/pitch-practice" element={<ProtectedRoute><PitchPracticePage /></ProtectedRoute>} />
+
+            {/* Protected Routes */}
+            <Route
+              path="/analyze"
+              element={<ProtectedRoute><DeckAnalyzerPage /></ProtectedRoute>}
+            />
+            <Route
+              path="/practice"
+              element={<ProtectedRoute><PitchPracticePage /></ProtectedRoute>}
+            />
             <Route path="/feedback" element={<ProtectedRoute><FeedbackPage /></ProtectedRoute>} />
+            {/* Catch-all route for unknown paths */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
-    </div>
+      </Router>
+    </AuthProvider>
   );
 }
 
-function AppWrapper() {
-  return (
-    <Router>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
-    </Router>
-  );
-}
-
-export default AppWrapper;
+export default App;
