@@ -75,7 +75,7 @@ else:
     print("ERROR: GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not found in environment. Server-side auth will fail.")
 
 
-# --- FIREBASE ADMIN SDK INITIALIZATION ---
+# --- FIREBASE ADMIN SDK INITIALIZATION (This section is correct) ---
 fb_db = None
 try:
     # Use the new environment variable. Fallback to local file for development.
@@ -92,25 +92,34 @@ except Exception as e:
     print(f"ERROR: Could not initialize Firebase Admin SDK: {e}")
 
 
+# ===================================================================
+# == CRITICAL FIX FOR RENDER DEPLOYMENT
+# ===================================================================
 # --- GOOGLE CLOUD AUTHENTICATION & v2 CLIENT ---
-PROJECT_ID = None
+PROJECT_ID = os.environ.get('GOOGLE_CLOUD_PROJECT')
 speech_client_v2 = None
 try:
-    SERVICE_ACCOUNT_FILE_GCP = 'semiotic-mender-461407-n2-9d029397fc74.json'
-    if os.path.exists(SERVICE_ACCOUNT_FILE_GCP):
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = SERVICE_ACCOUNT_FILE_GCP
-        with open(SERVICE_ACCOUNT_FILE_GCP, 'r') as f:
-            data = json.load(f)
-            PROJECT_ID = data.get('project_id')
+    # On Render, GOOGLE_APPLICATION_CREDENTIALS is set automatically.
+    # The client library finds it without any extra code.
+    # For local dev, you'd need to set this var yourself (e.g., in a .env file or terminal).
+    if os.environ.get('GOOGLE_APPLICATION_CREDENTIALS'):
+        # On Render, you can get the project ID from the metadata service or env
         if not PROJECT_ID:
-            raise ValueError("Google Cloud Project ID could not be determined from the service account file.")
+            # Fallback for getting project ID if not set directly
+            with open(os.environ.get('GOOGLE_APPLICATION_CREDENTIALS'), 'r') as f:
+                data = json.load(f)
+                PROJECT_ID = data.get('project_id')
+
         speech_client_v2 = SpeechClient(client_options=ClientOptions(api_endpoint="us-central1-speech.googleapis.com"))
         print(f"Google Cloud Speech v2 client initialized for project: {PROJECT_ID}")
     else:
-        print(f"ERROR: GCP service account key not found at {SERVICE_ACCOUNT_FILE_GCP}. Speech-to-Text will be disabled.")
+        print("WARNING: GOOGLE_APPLICATION_CREDENTIALS not set. Speech-to-Text will be disabled.")
 except Exception as e:
     print(f"ERROR: Could not initialize Google Cloud Speech v2 client: {e}")
     speech_client_v2 = None
+# ===================================================================
+# == END OF CRITICAL FIX
+# ===================================================================
 
 # --- Gemini API Configuration & Models ---
 GEMINI_API_KEY = None
