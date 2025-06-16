@@ -1,14 +1,32 @@
-// File: frontend/src/pages/PitchPracticePage.js
+// File: frontend/src/pages/PitchPracticePage.js (Updated)
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import '../App.css'; // Use the main App.css file
 
-// Backend WebSocket URL
-const BACKEND_API_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:8000";
-const BACKEND_WS_URL = process.env.REACT_APP_WEBSOCKET_URL || "ws://localhost:8000";
 const PITCH_DURATION_SECONDS = 120;
+
+// Dynamically determine backend URLs based on the environment
+const getBackendURLs = () => {
+    const isProduction = window.location.hostname !== 'localhost';
+
+    // Production URLs (Update if your Render URL changes)
+    const prodApiUrl = "https://pitchine-api.onrender.com";
+    const prodWsUrl = "wss://pitchine-api.onrender.com";
+
+    // Development URLs
+    const devApiUrl = "http://localhost:8000";
+    const devWsUrl = "ws://localhost:8000";
+
+    return {
+        apiUrl: isProduction ? prodApiUrl : devApiUrl,
+        wsUrl: isProduction ? prodWsUrl : devWsUrl,
+    };
+};
+
+const { apiUrl, wsUrl } = getBackendURLs();
+
 
 // ############################################################################
 // ## UI SUB-COMPONENTS (Themed)
@@ -287,7 +305,7 @@ function PitchPracticePage() {
     const [activeTab, setActiveTab] = useState('setup');
     const [historyData, setHistoryData] = useState([]);
 
-    const socketRef = useRef(null);
+    const wsRef = useRef(null);
     const audioContextRef = useRef(null);
     const mediaStreamRef = useRef(null);
     const mediaRecorderRef = useRef(null);
@@ -339,9 +357,9 @@ function PitchPracticePage() {
         setStatusMessage("Ending session... generating report...");
 
         const sendEndMessage = () => {
-            if (socketRef.current?.readyState === WebSocket.OPEN) {
+            if (wsRef.current?.readyState === WebSocket.OPEN) {
                 const endSessionMessage = { type: "end_session", reason: reason };
-                socketRef.current.send(JSON.stringify(endSessionMessage));
+                wsRef.current.send(JSON.stringify(endSessionMessage));
             } else {
                 setAndTrackAppState('disconnected');
                 setStatusMessage("Connection lost. Could not generate report.");
@@ -360,15 +378,15 @@ function PitchPracticePage() {
         if (!currentUser) return;
         let isMounted = true;
         
-        async function connect() {
-            if (socketRef.current) return;
+        const connect = async () => {
+            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) return;
             setAndTrackAppState('disconnected');
             setStatusMessage('Connecting...');
             
             try {
                 const token = await currentUser.getIdToken(true);
-                const ws = new WebSocket(`${BACKEND_WS_URL}/ws?token=${token}`);
-                socketRef.current = ws;
+                const ws = new WebSocket(`${wsUrl}/ws?token=${token}`);
+                wsRef.current = ws;
 
                 ws.onopen = () => {
                     if (isMounted) {
@@ -422,15 +440,32 @@ function PitchPracticePage() {
                         default: break;
                     }
                 };
-                ws.onclose = () => { if (isMounted) { setStatusMessage('Disconnected. Please refresh.'); setAndTrackAppState('disconnected'); socketRef.current = null; } };
-                ws.onerror = (error) => { console.error("WebSocket Error:", error); if (isMounted) ws.close(); };
+                ws.onclose = () => { 
+                    if (isMounted) { 
+                        setStatusMessage('Disconnected. Reconnecting...'); 
+                        setAndTrackAppState('disconnected'); 
+                        wsRef.current = null; 
+                        setTimeout(connect, 3000); // <-- AUTOMATIC RECONNECT
+                    } 
+                };
+                ws.onerror = (error) => { 
+                    console.error("WebSocket Error:", error); 
+                    if (isMounted) ws.close(); 
+                };
             } catch (error) {
                 console.error("Auth token error for WebSocket:", error);
                 if (isMounted) setStatusMessage('Authentication error. Cannot connect.');
             }
         }
         connect();
-        return () => { isMounted = false; if (socketRef.current) { socketRef.current.close(); } cleanupAudio(); };
+        return () => { 
+            isMounted = false; 
+            if (wsRef.current) { 
+                wsRef.current.onclose = null; // Prevent reconnect on component unmount
+                wsRef.current.close(); 
+            } 
+            cleanupAudio(); 
+        };
     }, [currentUser, setAndTrackAppState, cleanupAudio, generateReport]);
     
     useEffect(() => {
@@ -458,7 +493,7 @@ function PitchPracticePage() {
         const fetchAndSetInitialData = async () => {
             try {
                 const token = await currentUser.getIdToken();
-                const response = await fetch(`${BACKEND_API_URL}/api/profiles`,  { headers: { 'Authorization': `Bearer ${token}` } });
+                const response = await fetch(`${apiUrl}/api/profiles`,  { headers: { 'Authorization': `Bearer ${token}` } });
                 if (!response.ok) throw new Error('Failed to fetch profiles');
                 const profiles = await response.json();
                 setSavedProfiles(profiles);
@@ -486,8 +521,8 @@ function PitchPracticePage() {
         recorder.ondataavailable = e => { if (e.data.size > 0) utteranceChunksRef.current.push(e.data); };
         recorder.onstop = () => {
             const audioBlob = new Blob(utteranceChunksRef.current, { type: 'audio/webm;codecs=opus' });
-            if (audioBlob.size > 0 && socketRef.current?.readyState === WebSocket.OPEN) {
-                socketRef.current.send(audioBlob);
+            if (audioBlob.size > 0 && wsRef.current?.readyState === WebSocket.OPEN) {
+                wsRef.current.send(audioBlob);
             }
         };
         recorder.start();
@@ -550,7 +585,7 @@ function PitchPracticePage() {
             const token = await currentUser.getIdToken();
             const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
             const payload = { name, pitch, problem };
-            const url = profileId ? `${BACKEND_API_URL}/api/profiles/${profileId}` : `${BACKEND_API_URL}/api/profiles`;
+            const url = profileId ? `${apiUrl}/api/profiles/${profileId}` : `${apiUrl}/api/profiles`;
             const method = profileId ? 'PUT' : 'POST';
             const response = await fetch(url, { method, headers, body: JSON.stringify(payload) });
             if (!response.ok) throw new Error(`Failed to save profile. Status: ${response.status}`);
@@ -572,7 +607,7 @@ function PitchPracticePage() {
     const handleStartPitch = useCallback(async () => {
         const detailsForSession = await saveOrUpdateProfile();
         if (!detailsForSession) return;
-        if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) {
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
             setStatusMessage("Error: Connection not yet established. Please wait a moment.");
             return;
         }
@@ -581,7 +616,7 @@ function PitchPracticePage() {
         setConversationLog([]); setUserTranscription(''); setSpeakingInvestor(null);
         userHasSpokenRef.current = false;
         setPitchTimer(PITCH_DURATION_SECONDS);
-        socketRef.current.send(JSON.stringify({ type: "startup_details", data: { ...detailsForSession, mode: pitchMode } }));
+        wsRef.current.send(JSON.stringify({ type: "startup_details", data: { ...detailsForSession, mode: pitchMode } }));
         masterRecorderRef.current = new MediaRecorder(mediaStreamRef.current, { mimeType: 'audio/webm;codecs=opus' });
         masterRecorderRef.current.start();
         if (pitchMode === 'strict') { setAndTrackAppState('listening'); setStatusMessage("Microphone active. Your pitch session has started!"); } 
@@ -594,7 +629,7 @@ function PitchPracticePage() {
         setSpeakingInvestor(null);
         const textToSend = transcriptionRef.current.trim() || "[Silent Response]";
         setConversationLog(prev => [...prev, { role: 'You', text: textToSend }]);
-        socketRef.current.send(JSON.stringify({ type: "send_composed_text", text: textToSend }));
+        wsRef.current.send(JSON.stringify({ type: "send_composed_text", text: textToSend }));
         setUserTranscription('');
     }, [setAndTrackAppState]);
     
