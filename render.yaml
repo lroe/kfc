@@ -1,3 +1,33 @@
+# A list of static sites to deploy
+staticSites:
+  # -------------------
+  # The React Frontend
+  # -------------------
+  - name: pitchine-client
+    # The root of the frontend app is in the 'frontend' directory
+    rootDir: frontend
+    plan: free
+    buildCommand: "npm install && npm run build"
+    publishDir: build
+    # Rewrite all requests to index.html for React Router
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: REACT_APP_BACKEND_URL
+        fromService:
+          type: web # The type of the service we are referencing
+          name: pitchine-api
+          property: url
+      - key: REACT_APP_WEBSOCKET_URL
+        fromService:
+          type: web # The type of the service we are referencing
+          name: pitchine-api
+          property: url
+          modify: "sed 's/^http/ws/'"
+
+# A list of web services to deploy
 services:
   # ------------------
   # The Python Backend
@@ -21,7 +51,7 @@ services:
         generateValue: true
       - key: FRONTEND_URL
         fromService:
-          type: static # Corrected: This must match the type of the frontend service
+          type: static_site # The type of the service we are referencing
           name: pitchine-client
           property: url
     secretFiles:
@@ -31,32 +61,3 @@ services:
       - key: FIREBASE_SERVICE_ACCOUNT
         name: firebase_creds.json
         mountPath: /etc/secrets/firebase_creds.json
-
-  # -------------------
-  # The React Frontend
-  # -------------------
-  - type: static # CORRECTED: This is the required type for a static site.
-    name: pitchine-client
-    # Since your React app is in the 'frontend' subfolder,
-    # we need to tell Render where to look for it.
-    rootDir: frontend
-    plan: free
-    buildCommand: "npm install && npm run build"
-    publishDir: build
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
-    envVars:
-      - key: REACT_APP_BACKEND_URL
-        fromService:
-          type: web
-          name: pitchine-api
-          property: url
-      - key: REACT_APP_WEBSOCKET_URL
-        fromService:
-          type: web
-          name: pitchine-api
-          # Transform https:// to wss:// for WebSocket connection
-          property: url
-          modify: "sed 's/^http/ws/'"
