@@ -4,7 +4,7 @@ services:
   # ------------------
   - type: web
     name: pitchine-api
-    env: python # 'env' is the correct key, not 'runtime'.
+    env: python
     plan: free
     buildCommand: "pip install -r requirements.txt"
     startCommand: "uvicorn main:app --host 0.0.0.0 --port $PORT"
@@ -21,7 +21,7 @@ services:
         generateValue: true
       - key: FRONTEND_URL
         fromService:
-          type: static_site # Corrected: This must match the type of the frontend service
+          type: static # Corrected: This must match the type of the frontend service
           name: pitchine-client
           property: url
     secretFiles:
@@ -35,11 +35,11 @@ services:
   # -------------------
   # The React Frontend
   # -------------------
-  - type: static_site # CORRECTED: This is the required type for a static site
+  - type: static # CORRECTED: This is the required type for a static site.
     name: pitchine-client
     # Since your React app is in the 'frontend' subfolder,
     # we need to tell Render where to look for it.
-    rootDir: frontend 
+    rootDir: frontend
     plan: free
     buildCommand: "npm install && npm run build"
     publishDir: build
@@ -53,7 +53,6 @@ services:
           type: web
           name: pitchine-api
           property: url
-      # CORRECTED: WebSocket URL with proper transformation
       - key: REACT_APP_WEBSOCKET_URL
         fromService:
           type: web
