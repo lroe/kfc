@@ -1,107 +1,97 @@
 // File: frontend/src/App.js
 
 import React from 'react';
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  NavLink, // <-- Use NavLink for active styles
-  Navigate,
-  useLocation
-} from 'react-router-dom';
-
-// Import the AuthProvider and the useAuth hook
+import { BrowserRouter as Router, Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 
-// Import all your page components
+// Import all page components
+import HomePage from './pages/HomePage';
 import DeckAnalyzerPage from './pages/DeckAnalyzerPage';
 import PitchPracticePage from './pages/PitchPracticePage';
-import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
+import FeedbackPage from './pages/FeedbackPage';
 
 // Import the main stylesheet
 import './App.css';
 
-// --- MainNav Component Definition ---
-// This component displays the main navigation bar.
-function MainNav() {
-    const { currentUser, logout } = useAuth();
-
-    const handleLogout = async () => {
-        try {
-            await logout();
-        } catch (error) {
-            console.error("Failed to log out:", error);
-        }
-    };
-
-    return (
-        <nav className="main-nav">
-            <div className="nav-links">
-                <NavLink to="/" end>Home</NavLink>
-                {currentUser && <NavLink to="/analyze">Deck Analyzer</NavLink>}
-                {currentUser && <NavLink to="/practice">Live Pitch Practice</NavLink>}
-            </div>
-            <div className="nav-auth">
-                {currentUser ? (
-                    <>
-                        <span>{currentUser.email}</span>
-                        <button onClick={handleLogout} className="logout-btn">Logout</button>
-                    </>
-                ) : (
-                    <NavLink to="/login" className="login-btn">Login / Sign Up</NavLink>
-                )}
-            </div>
-        </nav>
-    );
-}
-
-// --- ProtectedRoute Component Definition ---
-// This wrapper component protects routes that require authentication.
-function ProtectedRoute({ children }) {
+/**
+ * A wrapper for routes that require authentication.
+ * If the user is not logged in, it redirects them to the login page.
+ */
+function PrivateRoute({ children }) {
     const { currentUser } = useAuth();
-    const location = useLocation();
-
-    if (!currentUser) {
-        // If the user is not logged in, redirect to the /login page
-        return <Navigate to="/login" state={{ from: location }} replace />;
-    }
-
-    // If the user is logged in, render the child component (the protected page)
-    return children;
+    // If there is a user, render the child component (the protected page)
+    // Otherwise, redirect to the /login page
+    return currentUser ? children : <Navigate to="/login" />;
 }
 
-
-// --- Main App Component ---
-// This is the root of your application.
+/**
+ * The main application component that holds the layout and routing logic.
+ */
 function App() {
-  return (
-    <AuthProvider>
-      <Router>
-        <MainNav />
-        <main className="container">
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/" element={<HomePage />} />
-            <Route path="/login" element={<LoginPage />} />
+  const { currentUser, logout } = useAuth();
 
-            {/* Protected Routes */}
-            <Route
-              path="/analyze"
-              element={<ProtectedRoute><DeckAnalyzerPage /></ProtectedRoute>}
-            />
-            <Route
-              path="/practice"
-              element={<ProtectedRoute><PitchPracticePage /></ProtectedRoute>}
-            />
-            
-            {/* Catch-all route for unknown paths */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </main>
-      </Router>
-    </AuthProvider>
+  return (
+    <div className="App">
+      <header className="app-header">
+        <div className="logo">Pitchine</div>
+        
+        {/* Main navigation is only shown to logged-in users */}
+        {currentUser && (
+          <nav className="main-nav">
+            <NavLink to="/">Home</NavLink>
+            <NavLink to="/deck-analyzer">Deck Analyzer</NavLink>
+            <NavLink to="/pitch-practice">Live Pitch Practice</NavLink>
+            <NavLink to="/feedback">Feedback</NavLink>
+          </nav>
+        )}
+        
+        <div className="user-info">
+            {currentUser ? (
+              <>
+                {/* Display user's email and a logout button if logged in */}
+                <span>{currentUser.email}</span>
+                <button onClick={logout} className="btn btn-secondary">Logout</button>
+              </>
+            ) : (
+                // Display a login button if not logged in
+                <NavLink to="/login" className="btn">Login</NavLink>
+            )}
+        </div>
+      </header>
+      
+      <main className="app-content">
+        <Routes>
+          {/* Publicly accessible login page */}
+          <Route path="/login" element={<LoginPage />} />
+          
+          {/* Protected Routes */}
+          {/* Each protected route is wrapped in the PrivateRoute component */}
+          <Route path="/" element={<PrivateRoute><HomePage /></PrivateRoute>} />
+          <Route path="/deck-analyzer" element={<PrivateRoute><DeckAnalyzerPage /></PrivateRoute>} />
+          <Route path="/pitch-practice" element={<PrivateRoute><PitchPracticePage /></PrivateRoute>} />
+          <Route path="/feedback" element={<PrivateRoute><FeedbackPage /></PrivateRoute>} />
+          
+          {/* A fallback route to redirect any stray root access to the home page */}
+          <Route index element={<Navigate to="/" />} />
+        </Routes>
+      </main>
+    </div>
   );
 }
 
-export default App;
+/**
+ * The top-level wrapper component that provides the Router and AuthContext
+ * to the entire application. This is the component you'll render in index.js.
+ */
+function AppWrapper() {
+  return (
+    <Router>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </Router>
+  );
+}
+
+export default AppWrapper;
