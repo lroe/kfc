@@ -55,6 +55,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/")
+def health_check():
+    return {"status": "ok", "message": "Health check successful"}
+
 # --- OAUTH2 SERVER-SIDE CONFIG ---
 config = Config()
 oauth = OAuth(config)
@@ -666,10 +670,7 @@ async def get_current_user_uid(authorization: str = Header(None)):
 
 # --- Endpoints for Pitch Practice (Project 2) ---
 
-@app.get("/")
-def read_root():
-    return {"Status": "OK", "Message": "Backend is running"}
-    
+
 @app.get('/login/google')
 async def login_via_google(request: Request):
     redirect_uri = request.url_for('auth_via_google')
