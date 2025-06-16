@@ -3,7 +3,7 @@ services:
   # -------------------
   # The React Frontend (Static Site)
   # -------------------
-  - type: web  # This IS the correct type for a static site.
+  - type: static_site  # This IS the correct type for a static site.
     name: pitchine-client
     rootDir: frontend
     plan: free
