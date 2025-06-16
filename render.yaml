@@ -1,16 +1,14 @@
-# =========================================================
-# Corrected render.yaml - Verified against Official Docs
-# =========================================================
-
-# The 'staticSites' block is a top-level key for React/Vite/etc. apps.
-staticSites:
+# All services are defined under this single top-level 'services' key.
+services:
   # -------------------
-  # The React Frontend
+  # The React Frontend (Static Site)
   # -------------------
-  - name: pitchine-client
+  - type: static_site  # This is the correct type name.
+    name: pitchine-client
     rootDir: frontend
+    plan: free
     buildCommand: "npm install && npm run build"
-    publishDir: build
+    publishDir: build # This key is valid ONLY when type is 'static_site'.
     routes:
       - type: rewrite
         source: /*
@@ -18,7 +16,7 @@ staticSites:
     envVars:
       - key: REACT_APP_BACKEND_URL
         fromService:
-          type: web # This is correct, it references the API's type
+          type: web # This references the type of the 'pitchine-api' service below.
           name: pitchine-api
           property: url
       - key: REACT_APP_WEBSOCKET_URL
@@ -28,35 +26,23 @@ staticSites:
           property: url
           modify: "sed 's/^http/ws/'"
 
-# The 'services' block is a separate top-level key for backend apps.
-services:
   # ------------------
-  # The Python Backend
+  # The Python Backend (Web Service)
   # ------------------
   - type: web
     name: pitchine-api
     env: python
-    plan: free # Use 'starter' if you need more resources
+    plan: free
     buildCommand: "pip install -r requirements.txt"
     startCommand: "uvicorn main:app --host 0.0.0.0 --port $PORT"
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
-      # These values MUST be set in the Render Dashboard Environment tab.
-      # The yaml only declares that the app will use them.
-      - key: GOOGLE_CLIENT_ID
-        sync: false
-      - key: GOOGLE_CLIENT_SECRET
-        sync: false
-      - key: GEMINI_API_KEY
-        sync: false
-      - key: GOOGLE_APPLICATION_CREDENTIALS
-        value: /etc/secrets/gcp_creds.json
-      - key: FIREBASE_SERVICE_ACCOUNT_PATH
-        value: /etc/secrets/firebase_creds.json
-      - key: SESSION_SECRET_KEY
-        generateValue: true # Render will create a secure, random value
       - key: FRONTEND_URL
         fromService:
-          name: pitchine-client # You ONLY provide the name
-          type: static_site    # ...and the type of the service you're linking to.
+          type: static_site # This correctly references the type of the 'pitchine-client' service above.
+          name: pitchine-client
+          property: url
+      # IMPORTANT: Add your secret keys and files in the Render Dashboard,
+      # not directly in this file. You will set GOOGLE_CLIENT_ID, GEMINI_API_KEY, etc.
+      # in the Environment tab of your 'pitchine-api' service after the blueprint is created.
