@@ -6,7 +6,8 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import '../App.css'; // Use the main App.css file
 
 // Backend WebSocket URL
-const BACKEND_WS_URL = process.env.REACT_APP_WEBSOCKET_URL + "/ws";
+const BACKEND_API_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:8000";
+const BACKEND_WS_URL = process.env.REACT_APP_WEBSOCKET_URL || "ws://localhost:8000";
 const PITCH_DURATION_SECONDS = 120;
 
 // ############################################################################
@@ -366,7 +367,7 @@ function PitchPracticePage() {
             
             try {
                 const token = await currentUser.getIdToken(true);
-                const ws = new WebSocket(`${BACKEND_WS_URL}?token=${token}`);
+                const ws = new WebSocket(`${BACKEND_WS_URL}/ws?token=${token}`);
                 socketRef.current = ws;
 
                 ws.onopen = () => {
@@ -457,7 +458,7 @@ function PitchPracticePage() {
         const fetchAndSetInitialData = async () => {
             try {
                 const token = await currentUser.getIdToken();
-                const response = await fetch('http://localhost:8000/api/profiles', { headers: { 'Authorization': `Bearer ${token}` } });
+                const response = await fetch(`${BACKEND_API_URL}/api/profiles`,  { headers: { 'Authorization': `Bearer ${token}` } });
                 if (!response.ok) throw new Error('Failed to fetch profiles');
                 const profiles = await response.json();
                 setSavedProfiles(profiles);
@@ -549,7 +550,7 @@ function PitchPracticePage() {
             const token = await currentUser.getIdToken();
             const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
             const payload = { name, pitch, problem };
-            const url = profileId ? `http://localhost:8000/api/profiles/${profileId}` : 'http://localhost:8000/api/profiles';
+            const url = profileId ? `${BACKEND_API_URL}/api/profiles/${profileId}` : `${BACKEND_API_URL}/api/profiles`;
             const method = profileId ? 'PUT' : 'POST';
             const response = await fetch(url, { method, headers, body: JSON.stringify(payload) });
             if (!response.ok) throw new Error(`Failed to save profile. Status: ${response.status}`);
