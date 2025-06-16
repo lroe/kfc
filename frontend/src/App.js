@@ -1,10 +1,19 @@
-// File: frontend/src/App.js (Corrected)
+// File: frontend/src/App.js
 
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, NavLink, Navigate, Outlet } from 'react-router-dom';
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  NavLink,
+  Navigate,
+  useLocation
+} from 'react-router-dom';
+
+// Import the AuthProvider and the useAuth hook
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 
-// Import all page components
+// Import all page components, including the new FeedbackPage
 import HomePage from './pages/HomePage';
 import DeckAnalyzerPage from './pages/DeckAnalyzerPage';
 import PitchPracticePage from './pages/PitchPracticePage';
@@ -14,94 +23,108 @@ import FeedbackPage from './pages/FeedbackPage';
 // Import the main stylesheet
 import './App.css';
 
-/**
- * The main layout for all protected pages.
- * It includes the header with navigation and an <Outlet> to render the specific page content.
- */
-function MainLayout() {
+// --- MainNav Component Definition ---
+// This component matches your original structure. It displays the main
+// navigation bar on every page, and uses the `currentUser` state to
+// decide which links to show.
+function MainNav() {
     const { currentUser, logout } = useAuth();
 
+    const handleLogout = async () => {
+        try {
+            await logout();
+        } catch (error) {
+            console.error("Failed to log out:", error);
+        }
+    };
+
     return (
-        <div className="App">
-            <header className="app-header">
-                <div className="logo">Pitchine</div>
-                <nav className="main-nav">
-                    <NavLink to="/">Home</NavLink>
-                    <NavLink to="/deck-analyzer">Deck Analyzer</NavLink>
-                    <NavLink to="/pitch-practice">Live Pitch Practice</NavLink>
-                    <NavLink to="/feedback">Feedback</NavLink>
-                </nav>
-                <div className="user-info">
-                    {currentUser && (
-                        <>
-                            <span>{currentUser.email}</span>
-                            <button onClick={logout} className="btn btn-secondary">Logout</button>
-                        </>
-                    )}
-                </div>
-            </header>
-            <main className="app-content">
-                {/* The Outlet is the placeholder where child routes will be rendered */}
-                <Outlet />
-            </main>
-        </div>
+        <header className="app-header">
+            <div className="logo">Pitchine</div>
+            <nav className="main-nav">
+                {/* Links are only rendered if a user is logged in. On the login page,
+                    currentUser is null, so these links will not appear. */}
+                {currentUser && <NavLink to="/">Home</NavLink>}
+                {currentUser && <NavLink to="/deck-analyzer">Deck Analyzer</NavLink>}
+                {currentUser && <NavLink to="/pitch-practice">Live Pitch Practice</NavLink>}
+                {currentUser && <NavLink to="/feedback">Feedback</NavLink>}
+            </nav>
+            <div className="user-info">
+                {currentUser ? (
+                    <>
+                        <span>{currentUser.email}</span>
+                        <button onClick={handleLogout} className="btn btn-secondary">Logout</button>
+                    </>
+                ) : (
+                    // This section is empty on the login page, preserving its simple style.
+                    null
+                )}
+            </div>
+        </header>
     );
 }
 
-
-/**
- * A wrapper for routes that require authentication.
- * If the user is not logged in, it redirects them to the login page.
- */
-function PrivateRoute({ children }) {
+// --- ProtectedRoute Component Definition ---
+// This is the exact wrapper component from your working code.
+function ProtectedRoute({ children }) {
     const { currentUser } = useAuth();
-    return currentUser ? children : <Navigate to="/login" />;
+    const location = useLocation();
+
+    if (!currentUser) {
+        // If the user is not logged in, redirect to the /login page
+        return <Navigate to="/login" state={{ from: location }} replace />;
+    }
+
+    // If the user is logged in, render the child component
+    return children;
 }
 
-/**
- * The App component now correctly defines the route structure.
- */
+
+// --- Main App Component ---
+// This component now defines the routes within your desired structure.
 function App() {
   return (
-    <Routes>
-        {/* Route 1: The public login page. It does NOT use the MainLayout. */}
-        <Route path="/login" element={<LoginPage />} />
+    <div className="App">
+        <MainNav />
+        <main className="app-content">
+          <Routes>
+            {/* Public Route */}
+            <Route path="/login" element={<LoginPage />} />
 
-        {/* Route 2: A parent route that protects and provides the MainLayout for all nested routes. */}
-        <Route 
-            path="/" 
-            element={
-                <PrivateRoute>
-                    <MainLayout />
-                </PrivateRoute>
-            }
-        >
-            {/* These are the children of MainLayout. They will be rendered in the <Outlet>. */}
+            {/* Protected Routes */}
+            <Route
+              path="/"
+              element={<ProtectedRoute><HomePage /></ProtectedRoute>}
+            />
+            <Route
+              path="/deck-analyzer"
+              element={<ProtectedRoute><DeckAnalyzerPage /></ProtectedRoute>}
+            />
+            <Route
+              path="/pitch-practice"
+              element={<ProtectedRoute><PitchPracticePage /></ProtectedRoute>}
+            />
+            {/* The new feedback page route, also protected */}
+            <Route
+              path="/feedback"
+              element={<ProtectedRoute><FeedbackPage /></ProtectedRoute>}
+            />
             
-            {/* The 'index' route renders at the parent's path ('/'). This is for your HomePage. */}
-            <Route index element={<HomePage />} /> 
-            
-            {/* Other protected pages are defined with their relative paths. */}
-            <Route path="deck-analyzer" element={<DeckAnalyzerPage />} />
-            <Route path="pitch-practice" element={<PitchPracticePage />} />
-            <Route path="feedback" element={<FeedbackPage />} />
-            
-            {/* A catch-all for any other path will redirect to the home page. */}
-            <Route path="*" element={<Navigate to="/" />} />
-        </Route>
-    </Routes>
+            {/* Catch-all route for any other unknown path */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+    </div>
   );
 }
 
-/**
- * The top-level wrapper component that provides the Router and AuthContext.
- */
+// This wrapper is the standard way to provide context to the whole app.
 function AppWrapper() {
   return (
     <Router>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
+        <AuthProvider>
+            <App />
+        </AuthProvider>
     </Router>
   );
 }
