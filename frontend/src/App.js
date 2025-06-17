@@ -19,6 +19,7 @@ import PitchPracticePage from './pages/PitchPracticePage';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import FeedbackPage from './pages/FeedbackPage';
+import PrivacyPage from './pages/PrivacyPage';
 // Import the main stylesheet
 import './App.css';
 
@@ -41,6 +42,7 @@ function MainNav() {
                 <NavLink to="/" end>Home</NavLink>
                 {currentUser && <NavLink to="/analyze">Deck Analyzer</NavLink>}
                 {currentUser && <NavLink to="/practice">Live Pitch Practice</NavLink>}
+                  <NavLink to="/privacy">Privacy</NavLink>
                 <NavLink to="/feedback">Feedback</NavLink>
             </div>
             <div className="nav-auth">
@@ -95,6 +97,7 @@ function App() {
               path="/practice"
               element={<ProtectedRoute><PitchPracticePage /></ProtectedRoute>}
             />
+                <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/feedback" element={<ProtectedRoute><FeedbackPage /></ProtectedRoute>} />
             {/* Catch-all route for unknown paths */}
             <Route path="*" element={<Navigate to="/" replace />} />
